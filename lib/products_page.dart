@@ -36,20 +36,37 @@ class _ProductsPageState extends State<ProductsPage> {
     fetchProducts();
   }
 
+  Future<void> updateProduct(
+    int id,
+    String name,
+    double price,
+    int stock,
+  ) async {
+    await SupabaseConfig.client
+        .from('products')
+        .update({'name': name, 'price': price, 'stock': stock})
+        .eq('id', id);
+    fetchProducts();
+  }
+
   Future<void> deleteProduct(int id) async {
     await SupabaseConfig.client.from('products').delete().eq('id', id);
     fetchProducts();
   }
 
-  void showAddProductDialog() {
-    final nameCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
-    final stockCtrl = TextEditingController();
+  void showProductDialog({Map<String, dynamic>? product}) {
+    final nameCtrl = TextEditingController(text: product?['name'] ?? '');
+    final priceCtrl = TextEditingController(
+      text: product?['price']?.toString() ?? '',
+    );
+    final stockCtrl = TextEditingController(
+      text: product?['stock']?.toString() ?? '',
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Product'),
+        title: Text(product == null ? 'Add Product' : 'Edit Product'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -76,14 +93,23 @@ class _ProductsPageState extends State<ProductsPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              addProduct(
-                nameCtrl.text,
-                double.parse(priceCtrl.text),
-                int.parse(stockCtrl.text),
-              );
+              if (product == null) {
+                addProduct(
+                  nameCtrl.text,
+                  double.tryParse(priceCtrl.text) ?? 0,
+                  int.tryParse(stockCtrl.text) ?? 0,
+                );
+              } else {
+                updateProduct(
+                  product['id'],
+                  nameCtrl.text,
+                  double.tryParse(priceCtrl.text) ?? 0,
+                  int.tryParse(stockCtrl.text) ?? 0,
+                );
+              }
               Navigator.pop(context);
             },
-            child: const Text('Add'),
+            child: Text(product == null ? 'Add' : 'Update'),
           ),
         ],
       ),
@@ -97,7 +123,7 @@ class _ProductsPageState extends State<ProductsPage> {
         title: const Text('Products'),
         actions: [
           IconButton(
-            onPressed: showAddProductDialog,
+            onPressed: () => showProductDialog(),
             icon: const Icon(Icons.add),
           ),
         ],
@@ -109,9 +135,18 @@ class _ProductsPageState extends State<ProductsPage> {
           return ListTile(
             title: Text(product['name']),
             subtitle: Text("₹${product['price']} - Stock: ${product['stock']}"),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => deleteProduct(product['id']),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () => showProductDialog(product: product),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => deleteProduct(product['id']),
+                ),
+              ],
             ),
           );
         },
